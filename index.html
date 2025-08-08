@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Applications Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin: 0;
+        }
+        
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #3498db;
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        
+        .charts-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .chart-title {
+            margin-top: 0;
+            color: #2c3e50;
+            font-size: 1.2rem;
+        }
+        
+        .full-width-chart {
+            grid-column: span 2;
+        }
+        
+        .date-filter {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        select, input {
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 1.2rem;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-header">
+        <h1>Job Applications Dashboard</h1>
+        <div id="last-updated"></div>
+    </div>
+    
+    <div class="date-filter">
+        <label for="time-range">Time Range:</label>
+        <select id="time-range">
+            <option value="7">Last 7 Days</option>
+            <option value="30" selected>Last 30 Days</option>
+            <option value="90">Last 90 Days</option>
+            <option value="365">Last Year</option>
+            <option value="all">All Time</option>
+        </select>
+        <button id="apply-filter">Apply</button>
+    </div>
+    
+    <div class="stats-container">
+        <div class="stat-card">
+            <div class="stat-label">Total Applications</div>
+            <div class="stat-value" id="total-applications">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Interview Rate</div>
+            <div class="stat-value" id="interview-rate">0%</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Offer Rate</div>
+            <div class="stat-value" id="offer-rate">0%</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Success Rate</div>
+            <div class="stat-value" id="success-rate">0%</div>
+        </div>
+    </div>
+    
+    <div class="charts-container">
+        <div class="chart-card">
+            <h3 class="chart-title">Applications Per Day</h3>
+            <canvas id="applications-per-day-chart"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3 class="chart-title">Application Outcomes</h3>
+            <canvas id="outcomes-chart"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3 class="chart-title">Mood Distribution</h3>
+            <canvas id="mood-chart"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3 class="chart-title">Expectation vs Reality</h3>
+            <canvas id="expectation-chart"></canvas>
+        </div>
+        <div class="chart-card full-width-chart">
+            <h3 class="chart-title">Application Timeline</h3>
+            <canvas id="timeline-chart"></canvas>
+        </div>
+    </div>
+    
+    <div id="loading" class="loading">Loading data...</div>
+    
+    <script>
+    // First load required libraries, then initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            // 1. Initialize Supabase with your credentials
+           const supabaseUrl = 'https://aofvzgqksbhgljzowyby.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvZnZ6Z3Frc2JoZ2xqem93eWJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ0MzAxMTEsImV4cCI6MjA3MDAwNjExMX0.XA4xgMqrMy9finlY9xvOhPdrQIsKYlRGmrNx_1D6db4';
+ const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+            // 2. Now that Supabase is initialized, set up the dashboard
+            await initializeDashboard(supabase);
+        } catch (error) {
+            console.error('Initialization failed:', error);
+            document.getElementById('loading').textContent = 'Failed to initialize. Please refresh.';
+            document.getElementById('loading').style.color = 'red';
+        }
+    });
+
+    async function initializeDashboard(supabase) {
+        // Chart instances
+        let applicationsPerDayChart = null;
+        let outcomesChart = null;
+        let moodChart = null;
+        let expectationChart = null;
+        let timelineChart = null;
+
+        // DOM elements
+        const loadingElement = document.getElementById('loading');
+        const timeRangeSelect = document.getElementById('time-range');
+        const applyFilterButton = document.getElementById('apply-filter');
+        const totalApplicationsElement = document.getElementById('total-applications');
+        const interviewRateElement = document.getElementById('interview-rate');
+        const offerRateElement = document.getElementById('offer-rate');
+        const successRateElement = document.getElementById('success-rate');
+        const lastUpdatedElement = document.getElementById('last-updated');
+
+        // Event listeners
+        applyFilterButton.addEventListener('click', () => fetchData(supabase));
+
+        // Initial data load
+        await fetchData(supabase);
+
+        async function fetchData(supabaseClient) {
+            try {
+                loadingElement.style.display = 'block';
+                
+                const timeRange = timeRangeSelect.value;
+                let fromDate = new Date();
+                
+                if (timeRange !== 'all') {
+                    fromDate.setDate(fromDate.getDate() - parseInt(timeRange));
+                    fromDate = fromDate.toISOString().split('T')[0];
+                } else {
+                    fromDate = null;
+                }
+                
+                let query = supabaseClient
+                    .from('job_applications')
+                    .select('*')
+                    .order('date_applied', { ascending: false });
+                
+                if (fromDate) {
+                    query = query.gte('date_applied', fromDate);
+                }
+                
+                const { data: applications, error } = await query;
+                
+                if (error) throw error;
+                
+                processData(applications);
+                lastUpdatedElement.textContent = `Last updated: ${new Date().toLocaleString()}`;
+                loadingElement.style.display = 'none';
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                loadingElement.textContent = 'Error loading data. Please try again.';
+                loadingElement.style.color = 'red';
+            }
+        }
+
+        function processData(applications) {
+            updateStats(applications);
+            
+            // Prepare chart data
+            const chartData = {
+                byDate: groupByDate(applications),
+                outcomes: calculateOutcomes(applications),
+                moods: groupByMood(applications),
+                expectations: calculateExpectations(applications),
+                timeline: createTimeline(applications)
+            };
+            
+            // Render charts
+            renderCharts(chartData);
+        }
+
+        function updateStats(applications) {
+            const total = applications.length;
+            totalApplicationsElement.textContent = total;
+            
+            if (total === 0) {
+                interviewRateElement.textContent = '0%';
+                offerRateElement.textContent = '0%';
+                successRateElement.textContent = '0%';
+                return;
+            }
+            
+            const interviewed = applications.filter(app => app.interviewed).length;
+            const offered = applications.filter(app => app.offered).length;
+            const success = applications.filter(app => app.got_job).length;
+            
+            interviewRateElement.textContent = `${Math.round((interviewed / total) * 100)}%`;
+            offerRateElement.textContent = `${Math.round((offered / total) * 100)}%`;
+            successRateElement.textContent = `${Math.round((success / total) * 100)}%`;
+        }
+
+        function groupByDate(applications) {
+            const grouped = {};
+            applications.forEach(app => {
+                const date = app.date_applied.split('T')[0];
+                grouped[date] = (grouped[date] || 0) + 1;
+            });
+            return Object.entries(grouped)
+                .map(([date, count]) => ({ date, count }))
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+        }
+
+        function calculateOutcomes(applications) {
+            return {
+                noResponse: applications.filter(app => !app.feedback && !app.interviewed).length,
+                rejected: applications.filter(app => app.feedback && !app.interviewed).length,
+                interviewed: applications.filter(app => app.interviewed && !app.offered).length,
+                offered: applications.filter(app => app.offered && !app.got_job).length,
+                hired: applications.filter(app => app.got_job).length
+            };
+        }
+
+        function groupByMood(applications) {
+            const counts = {};
+            applications.forEach(app => {
+                const mood = app.mood || 'Not specified';
+                counts[mood] = (counts[mood] || 0) + 1;
+            });
+            return counts;
+        }
+
+        function calculateExpectations(applications) {
+            const bins = {
+                '0-2': { expectation: 0, reality: 0, count: 0 },
+                '3-5': { expectation: 0, reality: 0, count: 0 },
+                '6-8': { expectation: 0, reality: 0, count: 0 },
+                '9-10': { expectation: 0, reality: 0, count: 0 }
+            };
+            
+            applications.forEach(app => {
+                const exp = app.application_expectation || 0;
+                const bin = exp <= 2 ? '0-2' :
+                          exp <= 5 ? '3-5' :
+                          exp <= 8 ? '6-8' : '9-10';
+                
+                bins[bin].expectation += exp;
+                bins[bin].reality += app.got_job ? 10 : 0;
+                bins[bin].count++;
+            });
+            
+            const result = {};
+            Object.entries(bins).forEach(([bin, data]) => {
+                result[bin] = {
+                    expectation: data.count ? data.expectation / data.count : 0,
+                    reality: data.count ? data.reality / data.count : 0
+                };
+            });
+            return result;
+        }
+
+        function createTimeline(applications) {
+            const weeklyData = {};
+            
+            applications.forEach(app => {
+                const date = new Date(app.date_applied);
+                const year = date.getFullYear();
+                const weekNum = getWeekNumber(date);
+                const weekKey = `${year}-W${weekNum.toString().padStart(2, '0')}`;
+                
+                if (!weeklyData[weekKey]) {
+                    weeklyData[weekKey] = { applications: 0, interviews: 0, offers: 0, hires: 0 };
+                }
+                
+                weeklyData[weekKey].applications++;
+                if (app.interviewed) weeklyData[weekKey].interviews++;
+                if (app.offered) weeklyData[weekKey].offers++;
+                if (app.got_job) weeklyData[weekKey].hires++;
+            });
+            
+            return Object.entries(weeklyData)
+                .map(([week, data]) => ({ week, ...data }))
+                .sort((a, b) => a.week.localeCompare(b.week));
+        }
+
+        function getWeekNumber(date) {
+            const firstDay = new Date(date.getFullYear(), 0, 1);
+            const pastDays = (date - firstDay) / 86400000;
+            return Math.ceil((pastDays + firstDay.getDay() + 1) / 7);
+        }
+
+        function renderCharts(data) {
+            renderApplicationsChart(data.byDate);
+            renderOutcomesChart(data.outcomes);
+            renderMoodChart(data.moods);
+            renderExpectationChart(data.expectations);
+            renderTimelineChart(data.timeline);
+        }
+
+        function renderApplicationsChart(data) {
+            const ctx = document.getElementById('applications-per-day-chart').getContext('2d');
+            if (applicationsPerDayChart) applicationsPerDayChart.destroy();
+            
+            applicationsPerDayChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.date),
+                    datasets: [{
+                        label: 'Applications',
+                        data: data.map(d => d.count),
+                        backgroundColor: 'rgba(54, 162, 235, 0.7)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function renderOutcomesChart(data) {
+            const ctx = document.getElementById('outcomes-chart').getContext('2d');
+            if (outcomesChart) outcomesChart.destroy();
+            
+            outcomesChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['No Response', 'Rejected', 'Interviewed', 'Offered', 'Hired'],
+                    datasets: [{
+                        data: [data.noResponse, data.rejected, data.interviewed, data.offered, data.hired],
+                        backgroundColor: [
+                            'rgba(149, 165, 166, 0.7)',
+                            'rgba(231, 76, 60, 0.7)',
+                            'rgba(241, 196, 15, 0.7)',
+                            'rgba(46, 204, 113, 0.7)',
+                            'rgba(52, 152, 219, 0.7)'
+                        ]
+                    }]
+                }
+            });
+        }
+
+        function renderMoodChart(data) {
+            const ctx = document.getElementById('mood-chart').getContext('2d');
+            if (moodChart) moodChart.destroy();
+            
+            const labels = Object.keys(data);
+            moodChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: Object.values(data),
+                        backgroundColor: labels.map(mood => 
+                            mood === 'Excited' ? 'rgba(46, 204, 113, 0.7)' :
+                            mood === 'Optimistic' ? 'rgba(52, 152, 219, 0.7)' :
+                            mood === 'Neutral' ? 'rgba(241, 196, 15, 0.7)' :
+                            mood === 'Pessimistic' ? 'rgba(230, 126, 34, 0.7)' :
+                            mood === 'Stressed' ? 'rgba(231, 76, 60, 0.7)' :
+                            'rgba(149, 165, 166, 0.7)'
+                        )
+                    }]
+                }
+            });
+        }
+
+        function renderExpectationChart(data) {
+            const ctx = document.getElementById('expectation-chart').getContext('2d');
+            if (expectationChart) expectationChart.destroy();
+            
+            const labels = Object.keys(data);
+            expectationChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Expectation',
+                            data: labels.map(bin => data[bin].expectation),
+                            backgroundColor: 'rgba(54, 162, 235, 0.7)'
+                        },
+                        {
+                            label: 'Reality',
+                            data: labels.map(bin => data[bin].reality),
+                            backgroundColor: 'rgba(255, 99, 132, 0.7)'
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        y: { max: 10 }
+                    }
+                }
+            });
+        }
+
+        function renderTimelineChart(data) {
+            const ctx = document.getElementById('timeline-chart').getContext('2d');
+            if (timelineChart) timelineChart.destroy();
+            
+            timelineChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => d.week),
+                    datasets: [
+                        {
+                            label: 'Applications',
+                            data: data.map(d => d.applications),
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            fill: false
+                        },
+                        {
+                            label: 'Interviews',
+                            data: data.map(d => d.interviews),
+                            borderColor: 'rgba(255, 206, 86, 1)',
+                            fill: false
+                        },
+                        {
+                            label: 'Offers',
+                            data: data.map(d => d.offers),
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            fill: false
+                        },
+                        {
+                            label: 'Hires',
+                            data: data.map(d => d.hires),
+                            borderColor: 'rgba(153, 102, 255, 1)',
+                            fill: false
+                        }
+                    ]
+                }
+            });
+        }
+    }
+</script>
+</body>
+</html>

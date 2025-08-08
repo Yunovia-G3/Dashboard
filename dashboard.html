@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Job Application Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+  <body>
+  <div class="top-bar">
+    <h1>Job Application Dashboard</h1>
+    <button id="logoutBtn">Logout</button>
+  </div>
+
+  <div class="summary-and-table">
+  <div class="summary-cards">
+    <div class="card" id="totalApplicationsCard">
+      <h3>Total Applications</h3>
+      <p id="totalApplications">0</p>
+    </div>
+    <div class="card" id="offersReceivedCard">
+      <h3>Offers Received</h3>
+      <p id="offersReceived">0</p>
+    </div>
+    <div class="card" id="applicationsWeekCard">
+      <h3>Applications This Week</h3>
+      <p id="applicationsThisWeek">0</p>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <table id="historyTable">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Company</th>
+          <th>Role</th>
+          <th>Interviewed</th>
+          <th>Offered</th>
+          <th>Got Job</th>
+          <th>Mood</th>
+          <th>Expectation</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+
+  <div class="charts-container">
+    <!-- Your canvas charts here -->
+  </div>
+</body>
+
+
+  <div class="charts-container">
+    <canvas id="applicationsPerDayChart"></canvas>
+    <canvas id="jobSuccessRateChart"></canvas>
+    <canvas id="interviewRateChart"></canvas>
+    <canvas id="moodChart"></canvas>
+    <canvas id="expectationChart"></canvas>
+  </div>
+
+  <script type="module" src="dashboard.js"></script>
+</body>
+</html>
