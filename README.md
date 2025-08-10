@@ -1,4 +1,4 @@
-**📊 Job Application Insights Dashboard**
+***📊 Job Application Insights Dashboard***
 
 The Job Application Insights Dashboard is a web application built with HTML, CSS, and JavaScript that provides visual insights and summaries of all job applications tracked using the Job Tracker Sidepanel App.
 It transforms raw job application data into easy-to-read graphs, statistics, and resume comparison insights to help job seekers optimize their job-hunting strategy.
