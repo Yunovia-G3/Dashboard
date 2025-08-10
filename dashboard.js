@@ -391,6 +391,7 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
     renderSummaryCards(data);
   renderTable(data);   // ✅ no redeclaration here
   renderCharts(data);
+  analyzeResumes(data);
 } else {
   alert('No application data available for this user.');
 }
@@ -433,8 +434,81 @@ function renderSummaryCards(data) {
 }
 
 
-// Load & render charts
-fetchData().then(data => {
-  if (data.length) renderCharts(data);
-  else alert('No application data available for this user.');
-});
+
+
+
+async function analyzeResumes(data) {
+const successful = data.filter(d => d.got_job && d.resume_data?.trim() !== '');
+const unsuccessful = data.filter(d => !d.got_job && d.resume_data?.trim() !== '');
+
+if (successful.length === 0 && unsuccessful.length === 0) {
+  chatSection.innerHTML = `<p class="text-gray-500">⚠️ No resumes found for comparison. Please upload some resumes first.</p>`;
+  return;
+}
+
+
+  const prompt = `
+Compare these successful resumes to the unsuccessful ones and identify the differences:
+Successful Resumes:
+${successful.map(d => `Resume:\n${d.resume_data}\n---`).join('\n')}
+
+Unsuccessful Resumes:
+${unsuccessful.map(d => `Resume:\n${d.resume_data}\n---`).join('\n')}
+
+Based on the comparison, summarize what makes resumes successful and suggest an improved version.
+`;
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7
+    })
+  });
+
+  const result = await response.json();
+  const output = result.choices[0]?.message?.content || 'No output';
+
+  document.getElementById('aiGeneratedResume').textContent = output;
+}
+
+
+function formatGPTResponse(responseText) {
+  const successfulPoints = [];
+  const unsuccessfulPoints = [];
+  let improvedResume = "";
+
+  // Extract sections from the raw text
+  const successMatch = responseText.match(/Successful Resumes:([\s\S]*?)Unsuccessful Resumes:/);
+  const unsuccessMatch = responseText.match(/Unsuccessful Resumes:([\s\S]*?)Improved Version for Unsuccessful resumes:/);
+  const resumeMatch = responseText.match(/Improved Version for Unsuccessful resumes:[\s\S]*?---([\s\S]*)---/);
+
+  if (successMatch) {
+    successMatch[1].trim().split(/\d+\.\s+/).forEach((point) => {
+      if (point.trim()) successfulPoints.push(point.trim());
+    });
+  }
+
+  if (unsuccessMatch) {
+    unsuccessMatch[1].trim().split(/\d+\.\s+/).forEach((point) => {
+      if (point.trim()) unsuccessfulPoints.push(point.trim());
+    });
+  }
+
+  if (resumeMatch) {
+    improvedResume = resumeMatch[1].trim();
+  }
+
+  // Populate the UI
+  const successfulList = document.getElementById("successfulList");
+  const unsuccessfulList = document.getElementById("unsuccessfulList");
+  const resumeBox = document.getElementById("aiGeneratedResume");
+
+  successfulList.innerHTML = successfulPoints.map(item => `<li>✅ ${item}</li>`).join('');
+  unsuccessfulList.innerHTML = unsuccessfulPoints.map(item => `<li>❌ ${item}</li>`).join('');
+  resumeBox.textContent = improvedResume;
+}

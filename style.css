@@ -275,3 +275,61 @@ display: flex;
   color: #FD6751;
   text-decoration: none;
 }
+
+.resume-section {
+  margin-top: 1rem;
+}
+
+.resume-box {
+  background-color: #1e1e1e;
+  color: #f0f0f0;
+  padding: 1rem;
+  border-radius: 5px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  font-family: monospace;
+}
+.dark-section{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 50px;
+}
+.dark-section .card{
+  width: 90%;
+  height: fit-content;
+  padding: 40px 0 40px 0;
+}
+
+ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+ul li {
+  margin-bottom: 0.5rem;
+}
+
+
+.resume-section {
+  margin-top: 1.5rem;
+}
+
+.resume-section h3 {
+  margin-bottom: 0.5rem;
+  color: #00ffcc;
+}
+
+.resume-box {
+  background: #1e1e1e;
+  color: #dcdcdc;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  width: 80%;
+  min-height: 100px;
+ height: fit-content;
+  overflow-y: auto;
+  font-family: monospace;
+  white-space: pre-wrap;
+  border: 1px solid #444;
+}
