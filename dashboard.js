@@ -8,7 +8,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 // Logout
 document.getElementById('logoutBtn').addEventListener('click', async () => {
   await supabase.auth.signOut();
-  window.location.href = 'login.html';
+  window.location.href = 'index.html';
 });
 
 // Fetch current session
@@ -19,7 +19,7 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
   } = await supabase.auth.getSession();
 
   if (!session || sessionError) {
-    window.location.href = 'login.html';
+    window.location.href = 'index.html';
     return; // ✅ Legal now (inside async function)
   }
 
